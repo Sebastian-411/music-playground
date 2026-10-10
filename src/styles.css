@@ -250,6 +250,28 @@ kbd {
 }
 
 .settings h2 { font-size: 2rem; }
+.settings h3 { margin: 1rem 0 0.35rem; font-family: Fraunces, Georgia, serif; font-size: 1.25rem; font-weight: 560; }
+
+.study-list { display: grid; }
+.study-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.7rem 0;
+  border-top: 1px solid rgba(243, 234, 215, 0.12);
+}
+.study-row small, .song-list small { display: block; color: #e4a15c; }
+.study-row p { margin: 0.25rem 0 0; color: #d7c4a4; font-size: 0.88rem; }
+.study-row button[aria-pressed="true"] { background: #f4ecdf; }
+
+.song-list { list-style: none; margin: 0; padding: 0; }
+.song-list li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid rgba(243, 234, 215, 0.1);
+}
 
 .settings-copy, .listen-banner { margin: 0.35rem 0 0.8rem; color: #d7c4a4; }
 

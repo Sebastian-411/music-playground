@@ -17,7 +17,9 @@ import { noteName } from "./marimba/layout";
 import { MarimbaStage } from "./marimba/MarimbaStage";
 import { MarimbaSynth } from "./marimba/synth";
 import { markStrike } from "./marimba/strikes";
+import type { Estudio } from "./marimba/pacifico";
 import { Hud } from "./ui/Hud";
+import { Pacifico } from "./ui/Pacifico";
 import { Settings } from "./ui/Settings";
 
 export function App() {
@@ -25,7 +27,10 @@ export function App() {
   const [hoveredMidi, setHoveredMidi] = useState<number | null>(null);
   const [lastNote, setLastNote] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pacificoOpen, setPacificoOpen] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const [listening, setListening] = useState<Slot | null>(null);
+  const studyTimers = useRef<number[]>([]);
   const synth = useRef<MarimbaSynth | null>(null);
   const bindingsRef = useRef(bindings);
   const listeningRef = useRef(listening);
@@ -90,6 +95,20 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [play]);
 
+  const playEstudio = useCallback(
+    (estudio: Estudio) => {
+      studyTimers.current.forEach((timer) => window.clearTimeout(timer));
+      studyTimers.current = estudio.steps.map((chord, index) =>
+        window.setTimeout(() => {
+          chord.forEach((midi) => play(midi));
+          if (index === estudio.steps.length - 1) setPlayingId(null);
+        }, index * estudio.stepMs),
+      );
+      setPlayingId(estudio.id);
+    },
+    [play],
+  );
+
   const playScale = useCallback(() => {
     const base = bindingsRef.current.baseMidi;
     const scale = [0, 2, 4, 5, 7, 9, 11, 12]
@@ -116,11 +135,23 @@ export function App() {
         onPlay={play}
         onOctave={(direction) => update((current) => ({ ...current, baseMidi: shiftOctave(current.baseMidi, direction) }))}
         onScale={playScale}
+        onOpenPacifico={() => {
+          setSettingsOpen(false);
+          setPacificoOpen(true);
+        }}
         onOpenSettings={() => {
           setListening(null);
+          setPacificoOpen(false);
           setSettingsOpen(true);
         }}
       />
+      {pacificoOpen && (
+        <Pacifico
+          playingId={playingId}
+          onPlay={playEstudio}
+          onClose={() => setPacificoOpen(false)}
+        />
+      )}
       {settingsOpen && (
         <Settings
           bindings={bindings}

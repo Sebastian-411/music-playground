@@ -171,67 +171,173 @@ function Bar({
   );
 }
 
+function Beam({
+  x1,
+  z1,
+  x2,
+  z2,
+  y,
+  thickness,
+  height,
+  map,
+}: {
+  x1: number;
+  z1: number;
+  x2: number;
+  z2: number;
+  y: number;
+  thickness: number;
+  height: number;
+  map: THREE.CanvasTexture;
+}) {
+  const length = Math.hypot(x2 - x1, z2 - z1);
+  const angle = Math.atan2(x2 - x1, z2 - z1);
+  return (
+    <mesh
+      position={[(x1 + x2) / 2, y, (z1 + z2) / 2]}
+      rotation={[0, angle, 0]}
+      castShadow
+      receiveShadow
+      raycast={() => undefined}
+    >
+      <boxGeometry args={[thickness, height, Math.max(length, 0.02)]} />
+      <meshPhysicalMaterial map={map} color="#ffffff" roughness={0.72} />
+    </mesh>
+  );
+}
+
 function Frame() {
   const pine = useMemo(() => createPineTexture(), []);
   const stain = useMemo(() => createStainTexture(), []);
-  const width = spanX + 0.34;
-  const depth = extents.maxZ - extents.minZ + 0.28;
-  const railY = LAYOUT.deckY - 0.04;
-  const legHeight = 0.9;
+  const width = spanX + 0.36;
+  const railY = LAYOUT.deckY - 0.045;
+  const legHeight = 0.92;
+  const leftX = extents.minX - 0.1;
+  const rightX = extents.maxX + 0.1;
+  const frontZ = extents.maxZ + 0.07;
+  const backZ = extents.minZ - 0.06;
+  const stretcherY = 0.3;
+  const corners = [
+    [leftX, frontZ],
+    [rightX, frontZ],
+    [leftX, backZ],
+    [rightX, backZ],
+  ] as const;
 
   return (
     <group>
-      <mesh position={[midX, railY, extents.maxZ + 0.045]} castShadow receiveShadow raycast={() => undefined}>
-        <boxGeometry args={[width, 0.062, 0.078]} />
+      <mesh position={[midX, railY, frontZ - 0.02]} castShadow receiveShadow raycast={() => undefined}>
+        <boxGeometry args={[width, 0.06, 0.075]} />
         <meshPhysicalMaterial map={pine} color="#ffffff" roughness={0.42} clearcoat={0.22} />
       </mesh>
-      <mesh position={[midX, railY - 0.01, extents.minZ - 0.04]} castShadow raycast={() => undefined}>
+      <mesh position={[midX, railY - 0.01, backZ + 0.02]} castShadow raycast={() => undefined}>
         <boxGeometry args={[width, 0.05, 0.05]} />
         <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.68} />
       </mesh>
-      <mesh position={[midX, LAYOUT.deckY - 0.014, extents.maxZ - 0.045]} raycast={() => undefined}>
-        <boxGeometry args={[spanX + 0.08, 0.007, 0.008]} />
-        <meshStandardMaterial color="#1c100c" roughness={0.8} />
-      </mesh>
-      {[extents.minX - 0.07, extents.maxX + 0.07].map((x) => (
-        <mesh key={x} position={[x, railY - 0.08, midZ]} castShadow raycast={() => undefined}>
-          <boxGeometry args={[0.045, 0.28, depth * 0.72]} />
+      {[leftX, rightX].map((x) => (
+        <mesh key={x} position={[x, railY - 0.02, midZ]} castShadow raycast={() => undefined}>
+          <boxGeometry args={[0.05, 0.16, Math.max(frontZ - backZ - 0.08, 0.2)]} />
           <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.66} />
         </mesh>
       ))}
-      {[
-        [extents.minX - 0.02, extents.maxZ + 0.02, -1, 1],
-        [extents.maxX + 0.02, extents.maxZ + 0.02, 1, 1],
-        [extents.minX - 0.02, extents.minZ - 0.02, -1, -1],
-        [extents.maxX + 0.02, extents.minZ - 0.02, 1, -1],
-      ].map(([x, z, dirX, dirZ]) => (
-        <mesh
-          key={`${x}-${z}`}
-          position={[x + dirX * 0.05, legHeight / 2 - 0.02, z + dirZ * 0.03]}
-          rotation={[dirZ * -0.08, 0, dirX * -0.1]}
-          castShadow
-          raycast={() => undefined}
-        >
-          <boxGeometry args={[0.048, legHeight, 0.04]} />
+      {corners.map(([x, z]) => (
+        <mesh key={`${x}-${z}`} position={[x, legHeight / 2, z]} castShadow raycast={() => undefined}>
+          <boxGeometry args={[0.05, legHeight, 0.046]} />
           <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.74} />
         </mesh>
       ))}
-      <mesh position={[midX, 0.22, extents.maxZ + 0.08]} castShadow raycast={() => undefined}>
-        <boxGeometry args={[spanX * 0.72, 0.035, 0.035]} />
-        <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.76} />
+      <Beam x1={leftX} z1={frontZ} x2={rightX} z2={frontZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
+      <Beam x1={leftX} z1={backZ} x2={rightX} z2={backZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
+      <Beam x1={leftX} z1={frontZ} x2={leftX} z2={backZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
+      <Beam x1={rightX} z1={frontZ} x2={rightX} z2={backZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
+      <mesh position={[rightX + 0.12, LAYOUT.deckY + 0.01, frontZ - 0.08]} castShadow raycast={() => undefined}>
+        <boxGeometry args={[0.26, 0.018, 0.18]} />
+        <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.7} />
       </mesh>
     </group>
   );
 }
+
+function Suspension() {
+  const rows = [
+    BARS.filter((bar) => !bar.accidental),
+    BARS.filter((bar) => bar.accidental),
+  ];
+  return (
+    <group raycast={() => undefined}>
+      {rows.map((row) => {
+        const sorted = [...row].sort((a, b) => a.x - b.x);
+        const cordY = sorted[0].y - sorted[0].height / 2 - 0.01;
+        return (
+          <group key={sorted[0].midi}>
+            {(["frontNodeZ", "backNodeZ"] as const).map((node) =>
+              sorted.slice(0, -1).map((bar, index) => {
+                const next = sorted[index + 1];
+                return (
+                  <Cord
+                    key={`${node}-${bar.midi}`}
+                    ax={bar.x}
+                    ay={cordY}
+                    az={bar[node]}
+                    bx={next.x}
+                    by={cordY}
+                    bz={next[node]}
+                  />
+                );
+              }),
+            )}
+            {sorted.map((bar) => (
+              <group key={bar.midi}>
+                <mesh position={[bar.x, cordY, bar.frontNodeZ]} raycast={() => undefined}>
+                  <sphereGeometry args={[0.008, 10, 10]} />
+                  <meshStandardMaterial color="#1a100c" roughness={0.9} />
+                </mesh>
+                <mesh position={[bar.x, cordY, bar.backNodeZ]} raycast={() => undefined}>
+                  <sphereGeometry args={[0.008, 10, 10]} />
+                  <meshStandardMaterial color="#1a100c" roughness={0.9} />
+                </mesh>
+              </group>
+            ))}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function Cord({ ax, ay, az, bx, by, bz }: { ax: number; ay: number; az: number; bx: number; by: number; bz: number }) {
+  const length = Math.hypot(bx - ax, by - ay, bz - az);
+  const direction = new THREE.Vector3(bx - ax, by - ay, bz - az).normalize();
+  const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+  return (
+    <mesh position={[(ax + bx) / 2, (ay + by) / 2, (az + bz) / 2]} quaternion={quaternion} raycast={() => undefined}>
+      <cylinderGeometry args={[0.0032, 0.0032, Math.max(length, 0.01), 6]} />
+      <meshStandardMaterial color="#24160f" roughness={0.88} />
+    </mesh>
+  );
+}
+
+const MALLET_REST = [
+  {
+    head: new THREE.Vector3(extents.maxX + 0.02, LAYOUT.deckY + 0.055, extents.maxZ + 0.02),
+    aim: new THREE.Vector3(extents.maxX - 0.28, LAYOUT.deckY + 0.05, extents.maxZ + 0.02),
+  },
+  {
+    head: new THREE.Vector3(extents.maxX + 0.02, LAYOUT.deckY + 0.055, extents.maxZ - 0.08),
+    aim: new THREE.Vector3(extents.maxX - 0.28, LAYOUT.deckY + 0.05, extents.maxZ - 0.08),
+  },
+];
 
 function Mallets() {
   const left = useRef<THREE.Group>(null);
   const right = useRef<THREE.Group>(null);
   const seen = useRef(0);
   const cursor = useRef(0);
-  const current = useRef([new THREE.Vector3(-1.15, 1.28, 0.85), new THREE.Vector3(1.15, 1.28, 0.85)]);
-  const goal = useRef([new THREE.Vector3(-1.15, 1.05, 0.45), new THREE.Vector3(1.15, 1.05, 0.45)]);
-  const liftedAt = useRef([0, 0]);
+  const position = useRef(MALLET_REST.map((rest) => rest.head.clone()));
+  const aim = useRef(MALLET_REST.map((rest) => rest.aim.clone()));
+  const strikeAt = useRef([0, 0]);
+  const strikePos = useRef(MALLET_REST.map((rest) => rest.head.clone()));
+  const strikeAim = useRef(MALLET_REST.map((rest) => rest.aim.clone()));
 
   useFrame((_, delta) => {
     if (strikeLog.length > seen.current) {
@@ -240,23 +346,25 @@ function Mallets() {
       if (bar) {
         const hand = cursor.current % 2;
         cursor.current += 1;
-        goal.current[hand].set(bar.x, bar.y + 0.03, bar.z);
-        liftedAt.current[hand] = performance.now();
+        strikePos.current[hand].set(bar.x, bar.y + 0.09, bar.z + 0.05);
+        strikeAim.current[hand].set(bar.x, bar.y + 0.02, bar.z);
+        strikeAt.current[hand] = performance.now();
       }
       seen.current = strikeLog.length;
     }
     const groups = [left.current, right.current];
+    const blend = 1 - 0.0012 ** delta;
     for (let index = 0; index < 2; index += 1) {
-      const age = (performance.now() - liftedAt.current[index]) / 1000;
-      const lift = age < 0.08 ? 0 : Math.min(0.22, (age - 0.08) * 0.85);
-      const target = goal.current[index].clone();
-      target.y += lift;
-      target.z += lift * 0.35;
-      current.current[index].lerp(target, 1 - 0.0015 ** delta);
+      const age = (performance.now() - strikeAt.current[index]) / 1000;
+      const home = age > 0.62;
+      const targetPos = home ? MALLET_REST[index].head : strikePos.current[index];
+      const targetAim = home ? MALLET_REST[index].aim : strikeAim.current[index];
+      position.current[index].lerp(targetPos, blend);
+      aim.current[index].lerp(targetAim, blend);
       const group = groups[index];
       if (!group) continue;
-      group.position.copy(current.current[index]);
-      group.lookAt(goal.current[index].x, goal.current[index].y, goal.current[index].z);
+      group.position.copy(position.current[index]);
+      group.lookAt(aim.current[index]);
     }
   });
 
@@ -271,13 +379,17 @@ function Mallets() {
 function Mallet({ refGroup }: { refGroup: RefObject<THREE.Group | null> }) {
   return (
     <group ref={refGroup} raycast={() => undefined}>
-      <mesh position={[0, 0, 0.2]} rotation={[Math.PI / 2, 0, 0]} raycast={() => undefined}>
-        <cylinderGeometry args={[0.009, 0.006, 0.38, 10]} />
-        <meshStandardMaterial color="#c9843c" roughness={0.48} />
+      <mesh position={[0, 0, 0.22]} rotation={[Math.PI / 2, 0, 0]} raycast={() => undefined}>
+        <cylinderGeometry args={[0.01, 0.006, 0.44, 10]} />
+        <meshStandardMaterial color="#b87432" roughness={0.5} />
       </mesh>
-      <mesh raycast={() => undefined}>
-        <sphereGeometry args={[0.038, 20, 16]} />
-        <meshPhysicalMaterial color="#f4efe4" roughness={0.92} sheen={0.4} sheenColor="#fff6ea" />
+      <mesh position={[0, 0, 0.02]} raycast={() => undefined}>
+        <sphereGeometry args={[0.046, 22, 16]} />
+        <meshPhysicalMaterial color="#f7f1e6" roughness={0.9} sheen={0.55} sheenColor="#fff8ee" />
+      </mesh>
+      <mesh position={[0, 0, 0.015]} raycast={() => undefined}>
+        <torusGeometry args={[0.03, 0.008, 8, 16]} />
+        <meshStandardMaterial color="#efe4d2" roughness={0.85} />
       </mesh>
     </group>
   );
@@ -334,6 +446,7 @@ function Scene({ onPlay, onHover, mappedMidis }: StageProps) {
       </mesh>
       <ContactShadows position={[0, 0.001, 0.05]} opacity={0.38} scale={9} blur={2.4} far={1.8} color="#5a4636" />
       <Frame />
+      <Suspension />
       {BARS.map((spec) => (
         <Bar
           key={spec.midi}

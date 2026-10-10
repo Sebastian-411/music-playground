@@ -9,10 +9,20 @@ type HudProps = {
   onPlay: (midi: number) => void;
   onOctave: (direction: -1 | 1) => void;
   onScale: () => void;
+  onOpenPacifico: () => void;
   onOpenSettings: () => void;
 };
 
-export function Hud({ bindings, hoveredMidi, lastNote, onPlay, onOctave, onScale, onOpenSettings }: HudProps) {
+export function Hud({
+  bindings,
+  hoveredMidi,
+  lastNote,
+  onPlay,
+  onOctave,
+  onScale,
+  onOpenPacifico,
+  onOpenSettings,
+}: HudProps) {
   const notes = keyboardNotes(bindings.baseMidi);
   const hoveredLabel = hoveredMidi === null ? "Pasa el cursor sobre una lámina" : noteName(hoveredMidi);
   const hoveredKey =
@@ -38,6 +48,9 @@ export function Hud({ bindings, hoveredMidi, lastNote, onPlay, onOctave, onScale
           </div>
         </div>
         <div className="top-actions interactive">
+          <button type="button" className="ghost" onClick={onOpenPacifico}>
+            Pacífico
+          </button>
           <button type="button" className="ghost" onClick={onScale}>
             Escala
           </button>

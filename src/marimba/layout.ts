@@ -10,10 +10,11 @@ export const LAYOUT = {
   pitch: 0.14,
   naturalWidth: 0.086,
   accidentalWidth: 0.044,
-  naturalFront: 0.34,
-  accidentalFront: -0.015,
+  naturalFrontNode: 0.3,
+  accidentalFrontNode: -0.02,
   deckY: 0.98,
   barHeight: 0.024,
+  nodeInset: 0.224,
 } as const;
 
 export type BarSpec = {
@@ -25,6 +26,8 @@ export type BarSpec = {
   width: number;
   height: number;
   length: number;
+  frontNodeZ: number;
+  backNodeZ: number;
   resonatorLength: number;
   resonatorRadius: number;
 };
@@ -52,23 +55,28 @@ export function buildBars(): BarSpec[] {
   return midis.map((midi) => {
     const accidental = !isNatural(midi);
     const freq = midiToFreq(midi);
-    const length = (accidental ? 0.34 : 0.5) * Math.sqrt(lowFreq / freq);
+    const length = (accidental ? 0.36 : 0.52) * Math.sqrt(lowFreq / freq);
     const width = accidental ? LAYOUT.accidentalWidth : LAYOUT.naturalWidth;
-    const front = accidental ? LAYOUT.accidentalFront : LAYOUT.naturalFront;
     const below = accidental ? naturals.indexOf(midi - 1) : naturals.indexOf(midi);
     const x = (below - center) * LAYOUT.pitch + (accidental ? LAYOUT.pitch / 2 : 0);
-    const resonatorLength = Math.min(0.82, Math.max(0.15, 62 / freq + 0.1));
+    const frontNodeZ = accidental ? LAYOUT.accidentalFrontNode : LAYOUT.naturalFrontNode;
+    const nodeSpan = length * (1 - 2 * LAYOUT.nodeInset);
+    const backNodeZ = frontNodeZ - nodeSpan;
+    const acoustic = 343 / (4 * freq);
+    const resonatorLength = Math.min(0.74, Math.max(0.12, acoustic));
     return {
       midi,
       accidental,
       x,
-      y: LAYOUT.deckY + (accidental ? 0.038 : 0),
-      z: front - length / 2,
+      y: LAYOUT.deckY + (accidental ? 0.04 : 0),
+      z: (frontNodeZ + backNodeZ) / 2,
       width,
       height: LAYOUT.barHeight,
       length,
+      frontNodeZ,
+      backNodeZ,
       resonatorLength,
-      resonatorRadius: accidental ? 0.016 : 0.027,
+      resonatorRadius: accidental ? 0.015 : 0.02 + (MIDI_MAX - midi) * 0.0004,
     };
   });
 }

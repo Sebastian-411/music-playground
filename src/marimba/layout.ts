@@ -6,11 +6,15 @@ export const OCTAVE_BASES = [48, 60, 72] as const;
 const NOTE_NAMES = ["Do", "Do♯", "Re", "Re♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯", "La", "La♯", "Si"] as const;
 const NATURAL_PITCHES = new Set([0, 2, 4, 5, 7, 9, 11]);
 
-const PITCH = 0.118;
-const NATURAL_WIDTH = 0.068;
-const ACCIDENTAL_WIDTH = 0.042;
-const NATURAL_FRONT = 0.3;
-const ACCIDENTAL_FRONT = -0.02;
+export const LAYOUT = {
+  pitch: 0.14,
+  naturalWidth: 0.086,
+  accidentalWidth: 0.044,
+  naturalFront: 0.34,
+  accidentalFront: -0.015,
+  deckY: 0.98,
+  barHeight: 0.024,
+} as const;
 
 export type BarSpec = {
   midi: number;
@@ -48,27 +52,23 @@ export function buildBars(): BarSpec[] {
   return midis.map((midi) => {
     const accidental = !isNatural(midi);
     const freq = midiToFreq(midi);
-    const length = 0.82 * Math.sqrt(lowFreq / freq);
-    const width = accidental ? ACCIDENTAL_WIDTH : NATURAL_WIDTH;
-    const front = accidental ? ACCIDENTAL_FRONT : NATURAL_FRONT;
-    let x: number;
-    if (accidental) {
-      const below = naturals.indexOf(midi - 1);
-      x = (below - center) * PITCH + PITCH / 2;
-    } else {
-      x = (naturals.indexOf(midi) - center) * PITCH;
-    }
+    const length = (accidental ? 0.34 : 0.5) * Math.sqrt(lowFreq / freq);
+    const width = accidental ? LAYOUT.accidentalWidth : LAYOUT.naturalWidth;
+    const front = accidental ? LAYOUT.accidentalFront : LAYOUT.naturalFront;
+    const below = accidental ? naturals.indexOf(midi - 1) : naturals.indexOf(midi);
+    const x = (below - center) * LAYOUT.pitch + (accidental ? LAYOUT.pitch / 2 : 0);
+    const resonatorLength = Math.min(0.82, Math.max(0.15, 62 / freq + 0.1));
     return {
       midi,
       accidental,
       x,
-      y: accidental ? 0.232 : 0.176,
+      y: LAYOUT.deckY + (accidental ? 0.038 : 0),
       z: front - length / 2,
       width,
-      height: 0.036,
+      height: LAYOUT.barHeight,
       length,
-      resonatorLength: Math.min(0.92, Math.max(0.1, 88 / freq)),
-      resonatorRadius: accidental ? 0.016 : 0.02,
+      resonatorLength,
+      resonatorRadius: accidental ? 0.016 : 0.027,
     };
   });
 }

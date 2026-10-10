@@ -6,3 +6,12 @@ Plataforma para tocar instrumentos en el navegador. El primero es la marimba, el
 npm install
 npm run dev
 ```
+
+Para desplegarla:
+
+```bash
+docker build -t music-playground .
+docker run --rm -p 8080:80 music-playground
+```
+
+La app queda en `http://localhost:8080`.

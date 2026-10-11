@@ -1,6 +1,6 @@
 import type { Bindings } from "../marimba/bindings";
-import { activeRangeLabel, keyboardNotes } from "../marimba/bindings";
-import { isNatural, noteName } from "../marimba/layout";
+import { activeRangeLabel, keyboardNotes, labelForMidi } from "../marimba/bindings";
+import { KEY_COUNT, noteName } from "../marimba/layout";
 
 type HudProps = {
   bindings: Bindings;
@@ -25,8 +25,7 @@ export function Hud({
 }: HudProps) {
   const notes = keyboardNotes(bindings.baseMidi);
   const hoveredLabel = hoveredMidi === null ? "Pasa el cursor sobre una lámina" : noteName(hoveredMidi);
-  const hoveredKey =
-    hoveredMidi === null ? "" : keyForMidi(bindings, hoveredMidi);
+  const hoveredKey = hoveredMidi === null ? "" : labelForMidi(bindings, hoveredMidi);
 
   return (
     <div className="hud">
@@ -42,9 +41,9 @@ export function Hud({
             </svg>
           </span>
           <div>
-            <p className="eyebrow">Music Playground</p>
-            <h1>Marimba</h1>
-            <p className="subtitle">Piano de la selva</p>
+            <p className="eyebrow">Pacífico colombiano · {KEY_COUNT} láminas</p>
+            <h1>Marimba de chonta</h1>
+            <p className="subtitle">Una hilera, guadua y burro</p>
           </div>
         </div>
         <div className="top-actions interactive">
@@ -85,7 +84,7 @@ export function Hud({
             <button
               key={`${note.midi}-${index}`}
               type="button"
-              className={`key ${isNatural(note.midi) ? "natural" : "accidental"}`}
+              className="key natural"
               disabled={!note.playable}
               onPointerDown={(event) => {
                 event.preventDefault();
@@ -102,8 +101,3 @@ export function Hud({
   );
 }
 
-function keyForMidi(bindings: Bindings, midi: number): string {
-  const index = midi - bindings.baseMidi;
-  if (index < 0 || index >= bindings.noteLabels.length) return "";
-  return bindings.noteLabels[index];
-}

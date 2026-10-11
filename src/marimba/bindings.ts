@@ -1,25 +1,16 @@
-import { KEYBOARD_SPAN, MIDI_MAX, MIDI_MIN, OCTAVE_BASES, noteName } from "./layout";
+import { KEYBOARD_SPAN, OCTAVE_BASES, SCALE, noteName } from "./layout";
 
 const STORAGE_KEY = "music-playground.marimba.controls";
 
 export const DEFAULT_NOTE_CODES = [
   "KeyA",
-  "KeyW",
   "KeyS",
-  "KeyE",
   "KeyD",
   "KeyF",
-  "KeyT",
   "KeyG",
-  "KeyY",
   "KeyH",
-  "KeyU",
   "KeyJ",
   "KeyK",
-  "KeyO",
-  "KeyL",
-  "KeyP",
-  "Semicolon",
 ] as const;
 
 const CODE_LABELS: Record<string, string> = {
@@ -186,9 +177,15 @@ export function resolveKey(
   if (code === bindings.octaveUp) return { type: "octave", direction: 1 };
   const index = bindings.noteCodes.indexOf(code);
   if (index < 0) return null;
-  const midi = bindings.baseMidi + index;
-  if (midi < MIDI_MIN || midi > MIDI_MAX) return null;
+  const midi = noteAt(bindings.baseMidi, index);
+  if (midi === null) return null;
   return { type: "note", midi };
+}
+
+function noteAt(baseMidi: number, index: number): number | null {
+  const start = SCALE.indexOf(baseMidi);
+  if (start < 0) return null;
+  return SCALE[start + index] ?? null;
 }
 
 export function shiftOctave(baseMidi: number, direction: -1 | 1): number {
@@ -199,10 +196,17 @@ export function shiftOctave(baseMidi: number, direction: -1 | 1): number {
 
 export function keyboardNotes(baseMidi: number): { midi: number; playable: boolean; name: string }[] {
   return Array.from({ length: KEYBOARD_SPAN }, (_, index) => {
-    const midi = baseMidi + index;
-    const playable = midi >= MIDI_MIN && midi <= MIDI_MAX;
-    return { midi, playable, name: playable ? noteName(midi) : "—" };
+    const midi = noteAt(baseMidi, index);
+    const playable = midi !== null;
+    return { midi: midi ?? -1, playable, name: playable && midi !== null ? noteName(midi) : "—" };
   });
+}
+
+export function labelForMidi(bindings: Bindings, midi: number): string {
+  const start = SCALE.indexOf(bindings.baseMidi);
+  const index = SCALE.indexOf(midi) - start;
+  if (start < 0 || index < 0 || index >= bindings.noteLabels.length) return "";
+  return bindings.noteLabels[index];
 }
 
 export function activeRangeLabel(baseMidi: number): string {

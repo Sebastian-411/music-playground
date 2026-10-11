@@ -1,25 +1,23 @@
-export const MIDI_MIN = 48;
-export const MIDI_MAX = 84;
-export const KEYBOARD_SPAN = 17;
-export const OCTAVE_BASES = [48, 60, 72] as const;
-
 const NOTE_NAMES = ["Do", "Do♯", "Re", "Re♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯", "La", "La♯", "Si"] as const;
 const NATURAL_PITCHES = new Set([0, 2, 4, 5, 7, 9, 11]);
 
+/** Exemplar de la colección del Banco de la República: 23 láminas diatónicas. */
+export const KEY_COUNT = 23;
+export const KEYBOARD_SPAN = 8;
+export const MIDI_MIN = 48;
+export const OCTAVE_BASES = [48, 60, 72] as const;
+
 export const LAYOUT = {
-  pitch: 0.14,
-  naturalWidth: 0.086,
-  accidentalWidth: 0.044,
-  naturalFrontNode: 0.3,
-  accidentalFrontNode: -0.02,
-  deckY: 0.98,
-  barHeight: 0.024,
+  gap: 0.015,
+  frontEdge: 0.42,
+  deckY: 1.02,
   nodeInset: 0.224,
+  barFlatten: 0.48,
 } as const;
 
 export type BarSpec = {
   midi: number;
-  accidental: boolean;
+  index: number;
   x: number;
   y: number;
   z: number;
@@ -37,48 +35,65 @@ export function midiToFreq(midi: number): number {
 }
 
 export function isNatural(midi: number): boolean {
-  return NATURAL_PITCHES.has(midi % 12);
+  return NATURAL_PITCHES.has(((midi % 12) + 12) % 12);
 }
 
 export function noteName(midi: number): string {
+  const pitch = ((midi % 12) + 12) % 12;
   const octave = Math.floor(midi / 12) - 1;
-  return `${NOTE_NAMES[midi % 12]}${octave}`;
+  return `${NOTE_NAMES[pitch]}${octave}`;
+}
+
+function buildScale(start: number, count: number): number[] {
+  const notes: number[] = [];
+  let midi = start;
+  while (notes.length < count) {
+    if (isNatural(midi)) notes.push(midi);
+    midi += 1;
+  }
+  return notes;
+}
+
+/** Do3 a Re6, la hilera única de la marimba tradicional. */
+export const SCALE = buildScale(MIDI_MIN, KEY_COUNT);
+export const MIDI_MAX = SCALE[SCALE.length - 1];
+
+export function scaleIndex(midi: number): number {
+  return SCALE.indexOf(midi);
 }
 
 export function buildBars(): BarSpec[] {
-  const midis: number[] = [];
-  for (let midi = MIDI_MIN; midi <= MIDI_MAX; midi += 1) midis.push(midi);
-  const naturals = midis.filter(isNatural);
-  const center = (naturals.length - 1) / 2;
-  const lowFreq = midiToFreq(MIDI_MIN);
-
-  return midis.map((midi) => {
-    const accidental = !isNatural(midi);
-    const freq = midiToFreq(midi);
-    const length = (accidental ? 0.36 : 0.52) * Math.sqrt(lowFreq / freq);
-    const width = accidental ? LAYOUT.accidentalWidth : LAYOUT.naturalWidth;
-    const below = accidental ? naturals.indexOf(midi - 1) : naturals.indexOf(midi);
-    const x = (below - center) * LAYOUT.pitch + (accidental ? LAYOUT.pitch / 2 : 0);
-    const frontNodeZ = accidental ? LAYOUT.accidentalFrontNode : LAYOUT.naturalFrontNode;
-    const nodeSpan = length * (1 - 2 * LAYOUT.nodeInset);
-    const backNodeZ = frontNodeZ - nodeSpan;
-    const acoustic = 343 / (4 * freq);
-    const resonatorLength = Math.min(0.74, Math.max(0.12, acoustic));
+  const lowFreq = midiToFreq(SCALE[0]);
+  const drafted = SCALE.map((midi, index) => {
+    const t = (lowFreq / midiToFreq(midi)) ** 0.72;
+    const width = 0.046 + 0.052 * t;
+    const length = 0.18 + 0.56 * t;
+    const height = width * LAYOUT.barFlatten;
+    const acoustic = 343 / (4 * midiToFreq(midi));
     return {
       midi,
-      accidental,
-      x,
-      y: LAYOUT.deckY + (accidental ? 0.04 : 0),
-      z: (frontNodeZ + backNodeZ) / 2,
+      index,
       width,
-      height: LAYOUT.barHeight,
+      height,
       length,
-      frontNodeZ,
-      backNodeZ,
-      resonatorLength,
-      resonatorRadius: accidental ? 0.015 : 0.02 + (MIDI_MAX - midi) * 0.0004,
+      resonatorLength: 0.16 + Math.min(acoustic, 0.66) * 0.92,
+      resonatorRadius: width * 0.33,
+      y: LAYOUT.deckY,
     };
   });
+
+  let cursor = 0;
+  const placed = drafted.map((bar) => {
+    const x = cursor + bar.width / 2;
+    cursor += bar.width + LAYOUT.gap;
+    const front = LAYOUT.frontEdge;
+    const z = front - bar.length / 2;
+    const frontNodeZ = front - bar.length * LAYOUT.nodeInset;
+    const backNodeZ = front - bar.length * (1 - LAYOUT.nodeInset);
+    return { ...bar, x, z, frontNodeZ, backNodeZ };
+  });
+  const shift = (cursor - LAYOUT.gap) / 2;
+  return placed.map((bar) => ({ ...bar, x: bar.x - shift }));
 }
 
 export const BARS = buildBars();

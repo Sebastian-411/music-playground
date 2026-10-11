@@ -1,16 +1,10 @@
-import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
+import { ContactShadows, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { BARS, LAYOUT, type BarSpec, marimbaExtents } from "./layout";
-import { strikeLog, strikes } from "./strikes";
-import {
-  createBambooTexture,
-  createBarTopTexture,
-  createFloorTexture,
-  createPineTexture,
-  createStainTexture,
-} from "./textures";
+import { strikes } from "./strikes";
+import { createChontaTexture, createFloorTexture, createFrameTexture, createGuaduaTexture } from "./textures";
 
 type StageProps = {
   onPlay: (midi: number) => void;
@@ -21,73 +15,64 @@ type StageProps = {
 const extents = marimbaExtents();
 const midX = (extents.minX + extents.maxX) / 2;
 const midZ = (extents.minZ + extents.maxZ) / 2;
-const spanX = extents.maxX - extents.minX;
+
+const wood = "#ffffff";
+const cord = "#1c1612";
+const rubber = "#2a241c";
+const membrane = "#d9c7a6";
 
 function Bar({
   spec,
-  topMap,
-  bamboo,
-  stain,
-  mapped,
+  chonta,
+  guadua,
   onPlay,
   onHover,
 }: {
   spec: BarSpec;
-  topMap: THREE.CanvasTexture;
-  bamboo: THREE.CanvasTexture;
-  stain: THREE.CanvasTexture;
-  mapped: boolean;
+  chonta: THREE.CanvasTexture;
+  guadua: THREE.CanvasTexture;
   onPlay: (midi: number) => void;
   onHover: (midi: number | null) => void;
 }) {
-  const group = useRef<THREE.Group>(null);
-  const top = useRef<THREE.MeshPhysicalMaterial>(null);
+  const bar = useRef<THREE.Mesh>(null);
   const controls = useThree((state) => state.controls) as { enabled?: boolean } | null;
-  const tint = useMemo(
-    () => new THREE.Color().setHSL(0.07, 0.12, spec.accidental ? 0.82 : 0.96),
-    [spec.accidental],
-  );
+  const tint = useMemo(() => new THREE.Color().setHSL(0.07, 0.14, 0.94 + (spec.index % 4) * 0.015), [spec.index]);
   const tubeTint = useMemo(
-    () => new THREE.Color().setHSL(0.08, 0.18, 0.9 + (spec.midi % 4) * 0.02),
-    [spec.midi],
+    () => new THREE.Color().setHSL(0.08, 0.18, 0.62 + (spec.index % 5) * 0.025),
+    [spec.index],
   );
-  const rings = spec.resonatorLength > 0.34 ? [0.22, 0.5, 0.78] : [0.3, 0.7];
 
   useFrame(() => {
-    const struckAt = strikes.get(spec.midi);
-    const age = struckAt ? (performance.now() - struckAt) / 1000 : 10;
-    const hit = Math.max(0, 1 - age / 0.45);
-    if (group.current) group.current.position.y = spec.y - hit * 0.007;
-    if (!top.current) return;
-    if (hit > 0.04) {
-      top.current.emissive.set("#ffd7a8");
-      top.current.emissiveIntensity = hit * 0.42;
-    } else if (mapped) {
-      top.current.emissive.set("#8a5a32");
-      top.current.emissiveIntensity = 0.06;
-    } else {
-      top.current.emissive.set("#000000");
-      top.current.emissiveIntensity = 0;
-    }
+    const mesh = bar.current;
+    if (!mesh) return;
+    const strike = strikes.get(spec.midi);
+    const age = strike ? performance.now() - strike : 1000;
+    const dip = age < 90 ? Math.sin((age / 90) * Math.PI) * 0.012 : 0;
+    mesh.position.y = -dip;
   });
-
-  const setControls = (enabled: boolean) => {
-    if (controls) controls.enabled = enabled;
-  };
 
   const play = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
-    setControls(false);
     onPlay(spec.midi);
   };
+  const geometry = useMemo(() => barGeometry(spec.width, spec.height, spec.length), [spec.width, spec.height, spec.length]);
+
+  const tubeTop = -spec.height / 2 - 0.012;
+  const tubeCenter = tubeTop - spec.resonatorLength / 2;
 
   return (
-    <group ref={group} position={[spec.x, spec.y, spec.z]}>
-      <RoundedBox
-        args={[spec.width, spec.height, spec.length]}
-        radius={0.006}
-        smoothness={2}
+    <group position={[spec.x, spec.y, spec.z]}>
+      <mesh
+        ref={bar}
+        geometry={geometry}
         castShadow
+        onPointerDown={(event) => {
+          if (controls) controls.enabled = false;
+          play(event);
+        }}
+        onPointerUp={() => {
+          if (controls) controls.enabled = true;
+        }}
         onPointerOver={(event) => {
           event.stopPropagation();
           onHover(spec.midi);
@@ -95,381 +80,241 @@ function Bar({
         }}
         onPointerOut={() => {
           onHover(null);
-          document.body.style.cursor = "";
-          setControls(true);
+          document.body.style.cursor = "grab";
         }}
-        onPointerDown={play}
-        onPointerUp={() => setControls(true)}
       >
-        <meshPhysicalMaterial color="#3b2418" roughness={0.46} clearcoat={0.12} clearcoatRoughness={0.4} />
-      </RoundedBox>
-      <mesh
-        position={[0, spec.height / 2 + 0.0012, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        castShadow
-        onPointerOver={(event) => {
-          event.stopPropagation();
-          onHover(spec.midi);
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          onHover(null);
-          document.body.style.cursor = "";
-          setControls(true);
-        }}
-        onPointerDown={play}
-        onPointerUp={() => setControls(true)}
-      >
-        <planeGeometry args={[spec.width * 0.9, spec.length * 0.9]} />
-        <meshPhysicalMaterial
-          ref={top}
-          map={topMap}
-          color={tint}
-          roughness={0.38}
-          clearcoat={0.28}
-          clearcoatRoughness={0.32}
-          emissive="#000000"
-        />
+        <meshPhysicalMaterial map={chonta} color={tint} roughness={0.9} metalness={0} clearcoat={0} />
       </mesh>
-      <mesh position={[0, -spec.height / 2 - 0.045 - spec.resonatorLength / 2, 0]} castShadow raycast={() => undefined}>
-        <cylinderGeometry
-          args={[spec.resonatorRadius, spec.resonatorRadius * 0.94, spec.resonatorLength, 28, 1, true]}
-        />
-        <meshPhysicalMaterial
-          map={bamboo}
-          color={tubeTint}
-          roughness={0.34}
-          metalness={0.02}
-          clearcoat={0.18}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      <mesh
-        position={[0, -spec.height / 2 - 0.045 - spec.resonatorLength + spec.resonatorRadius * 0.15, 0]}
-        raycast={() => undefined}
-        castShadow
-      >
-        <sphereGeometry args={[spec.resonatorRadius * 0.96, 18, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />
-        <meshPhysicalMaterial color="#c9843a" roughness={0.42} />
-      </mesh>
-      {rings.map((place) => (
-        <mesh
-          key={place}
-          position={[0, -spec.height / 2 - 0.045 - spec.resonatorLength * (1 - place), 0]}
-          rotation={[Math.PI / 2, 0, 0]}
-          raycast={() => undefined}
-        >
-          <torusGeometry args={[spec.resonatorRadius * 1.01, 0.0042, 6, 20]} />
-          <meshStandardMaterial color="#7a4318" roughness={0.62} />
+
+      <CordWrap z={spec.frontNodeZ - spec.z} width={spec.width} lift={spec.height * 0.46} />
+      <CordWrap z={spec.backNodeZ - spec.z} width={spec.width} lift={spec.height * 0.46} />
+
+      <group position={[0, tubeCenter, 0]}>
+        <mesh castShadow>
+          <cylinderGeometry args={[spec.resonatorRadius, spec.resonatorRadius * 0.94, spec.resonatorLength, 22, 1, true]} />
+          <meshPhysicalMaterial map={guadua} color={tubeTint} roughness={0.88} metalness={0} side={THREE.DoubleSide} />
         </mesh>
-      ))}
-      <mesh position={[0, -spec.height / 2 - 0.03, 0]} raycast={() => undefined} castShadow>
-        <boxGeometry args={[spec.resonatorRadius * 1.3, 0.03, spec.resonatorRadius * 1.3]} />
-        <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.7} />
-      </mesh>
+        <mesh>
+          <cylinderGeometry args={[spec.resonatorRadius * 0.86, spec.resonatorRadius * 0.8, spec.resonatorLength * 0.98, 18, 1, true]} />
+          <meshStandardMaterial color="#1a1612" roughness={1} side={THREE.BackSide} />
+        </mesh>
+        <mesh position={[0, -spec.resonatorLength / 2 + 0.004, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[spec.resonatorRadius * 0.94, 22]} />
+          <meshStandardMaterial color="#2a241c" roughness={0.9} />
+        </mesh>
+        <mesh position={[0, spec.resonatorLength / 2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[spec.resonatorRadius * 0.98, 0.004, 6, 22]} />
+          <meshStandardMaterial color="#3a3228" roughness={0.8} />
+        </mesh>
+        {[0.18, 0.46, 0.74].map((t) => (
+          <mesh key={t} position={[0, spec.resonatorLength * (t - 0.5), 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[spec.resonatorRadius * 1.01, 0.006, 6, 18]} />
+            <meshStandardMaterial color="#241c16" roughness={0.9} />
+          </mesh>
+        ))}
+        <mesh position={[0, -spec.resonatorLength * 0.32, spec.resonatorRadius * 0.98]}>
+          <circleGeometry args={[spec.resonatorRadius * 0.7, 20]} />
+          <meshStandardMaterial color="#1a1612" roughness={1} />
+        </mesh>
+        <mesh position={[0, -spec.resonatorLength * 0.32, spec.resonatorRadius * 1.012]}>
+          <circleGeometry args={[spec.resonatorRadius * 0.58, 20]} />
+          <meshPhysicalMaterial color={membrane} roughness={0.32} metalness={0} />
+        </mesh>
+      </group>
     </group>
+  );
+}
+
+function CordWrap({ z, width, lift }: { z: number; width: number; lift: number }) {
+  return (
+    <mesh position={[0, lift, z]} rotation={[0, 0, Math.PI / 2]}>
+      <cylinderGeometry args={[0.0032, 0.0032, width + 0.012, 6]} />
+      <meshStandardMaterial color={cord} roughness={0.86} />
+    </mesh>
+  );
+}
+
+function Cord({ node }: { node: "front" | "back" }) {
+  const geometry = useMemo(() => {
+    const points = BARS.map(
+      (bar) => new THREE.Vector3(bar.x, bar.y + bar.height * 0.5, node === "front" ? bar.frontNodeZ : bar.backNodeZ),
+    );
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 90, 0.0042, 6, false);
+  }, [node]);
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial color={cord} roughness={0.84} />
+    </mesh>
   );
 }
 
 function Beam({
-  x1,
-  z1,
-  x2,
-  z2,
-  y,
+  start,
+  end,
   thickness,
   height,
   map,
 }: {
-  x1: number;
-  z1: number;
-  x2: number;
-  z2: number;
-  y: number;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
   thickness: number;
   height: number;
   map: THREE.CanvasTexture;
 }) {
-  const length = Math.hypot(x2 - x1, z2 - z1);
-  const angle = Math.atan2(x2 - x1, z2 - z1);
+  const length = start.distanceTo(end);
+  const mid = start.clone().add(end).multiplyScalar(0.5);
+  const angle = Math.atan2(end.z - start.z, end.x - start.x);
   return (
-    <mesh
-      position={[(x1 + x2) / 2, y, (z1 + z2) / 2]}
-      rotation={[0, angle, 0]}
-      castShadow
-      receiveShadow
-      raycast={() => undefined}
-    >
-      <boxGeometry args={[thickness, height, Math.max(length, 0.02)]} />
-      <meshPhysicalMaterial map={map} color="#ffffff" roughness={0.72} />
+    <mesh position={mid} rotation={[0, angle, 0]} castShadow>
+      <boxGeometry args={[length, height, thickness]} />
+      <meshPhysicalMaterial map={map} color={wood} roughness={0.74} metalness={0} />
     </mesh>
   );
 }
 
-function Frame() {
-  const pine = useMemo(() => createPineTexture(), []);
-  const stain = useMemo(() => createStainTexture(), []);
-  const width = spanX + 0.36;
-  const railY = LAYOUT.deckY - 0.045;
-  const legHeight = 0.92;
-  const leftX = extents.minX - 0.1;
-  const rightX = extents.maxX + 0.1;
-  const frontZ = extents.maxZ + 0.07;
-  const backZ = extents.minZ - 0.06;
-  const stretcherY = 0.3;
-  const corners = [
-    [leftX, frontZ],
-    [rightX, frontZ],
-    [leftX, backZ],
-    [rightX, backZ],
-  ] as const;
+function Frame({ map }: { map: THREE.CanvasTexture }) {
+  const y = LAYOUT.deckY - 0.05;
+  const first = BARS[0];
+  const last = BARS[BARS.length - 1];
+  const frontL = new THREE.Vector3(first.x - 0.12, y, first.frontNodeZ + 0.03);
+  const frontR = new THREE.Vector3(last.x + 0.12, y, last.frontNodeZ + 0.03);
+  const backL = new THREE.Vector3(first.x - 0.12, y, first.backNodeZ - 0.03);
+  const backR = new THREE.Vector3(last.x + 0.12, y, last.backNodeZ - 0.03);
+  const posts = [frontL, frontR, backL, backR];
 
   return (
     <group>
-      <mesh position={[midX, railY, frontZ - 0.02]} castShadow receiveShadow raycast={() => undefined}>
-        <boxGeometry args={[width, 0.06, 0.075]} />
-        <meshPhysicalMaterial map={pine} color="#ffffff" roughness={0.42} clearcoat={0.22} />
-      </mesh>
-      <mesh position={[midX, railY - 0.01, backZ + 0.02]} castShadow raycast={() => undefined}>
-        <boxGeometry args={[width, 0.05, 0.05]} />
-        <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.68} />
-      </mesh>
-      {[leftX, rightX].map((x) => (
-        <mesh key={x} position={[x, railY - 0.02, midZ]} castShadow raycast={() => undefined}>
-          <boxGeometry args={[0.05, 0.16, Math.max(frontZ - backZ - 0.08, 0.2)]} />
-          <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.66} />
-        </mesh>
+      <Beam start={frontL} end={frontR} thickness={0.055} height={0.06} map={map} />
+      <Beam start={backL} end={backR} thickness={0.055} height={0.06} map={map} />
+      <Beam start={frontL} end={backL} thickness={0.07} height={0.16} map={map} />
+      <Beam start={frontR} end={backR} thickness={0.07} height={0.16} map={map} />
+      <Beam start={frontL.clone().setY(0.32)} end={frontR.clone().setY(0.32)} thickness={0.04} height={0.04} map={map} />
+      <Beam start={backL.clone().setY(0.32)} end={backR.clone().setY(0.32)} thickness={0.04} height={0.04} map={map} />
+      {posts.map((post, index) => (
+        <group key={index} position={[post.x, 0, post.z]}>
+          <mesh position={[0, y / 2, 0]} castShadow>
+            <cylinderGeometry args={[0.028, 0.036, y, 12]} />
+            <meshPhysicalMaterial map={map} color={wood} roughness={0.76} metalness={0} />
+          </mesh>
+          <mesh position={[0, 0.028, 0]} receiveShadow>
+            <boxGeometry args={[0.18, 0.056, 0.16]} />
+            <meshPhysicalMaterial map={map} color={wood} roughness={0.78} metalness={0} />
+          </mesh>
+        </group>
       ))}
-      {corners.map(([x, z]) => (
-        <mesh key={`${x}-${z}`} position={[x, legHeight / 2, z]} castShadow raycast={() => undefined}>
-          <boxGeometry args={[0.05, legHeight, 0.046]} />
-          <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.74} />
-        </mesh>
-      ))}
-      <Beam x1={leftX} z1={frontZ} x2={rightX} z2={frontZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
-      <Beam x1={leftX} z1={backZ} x2={rightX} z2={backZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
-      <Beam x1={leftX} z1={frontZ} x2={leftX} z2={backZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
-      <Beam x1={rightX} z1={frontZ} x2={rightX} z2={backZ} y={stretcherY} thickness={0.04} height={0.04} map={stain} />
-      <mesh position={[rightX + 0.12, LAYOUT.deckY + 0.01, frontZ - 0.08]} castShadow raycast={() => undefined}>
-        <boxGeometry args={[0.26, 0.018, 0.18]} />
-        <meshPhysicalMaterial map={stain} color="#ffffff" roughness={0.7} />
-      </mesh>
     </group>
   );
 }
-
-function Suspension() {
-  const rows = [
-    BARS.filter((bar) => !bar.accidental),
-    BARS.filter((bar) => bar.accidental),
-  ];
-  return (
-    <group raycast={() => undefined}>
-      {rows.map((row) => {
-        const sorted = [...row].sort((a, b) => a.x - b.x);
-        const cordY = sorted[0].y - sorted[0].height / 2 - 0.01;
-        return (
-          <group key={sorted[0].midi}>
-            {(["frontNodeZ", "backNodeZ"] as const).map((node) =>
-              sorted.slice(0, -1).map((bar, index) => {
-                const next = sorted[index + 1];
-                return (
-                  <Cord
-                    key={`${node}-${bar.midi}`}
-                    ax={bar.x}
-                    ay={cordY}
-                    az={bar[node]}
-                    bx={next.x}
-                    by={cordY}
-                    bz={next[node]}
-                  />
-                );
-              }),
-            )}
-            {sorted.map((bar) => (
-              <group key={bar.midi}>
-                <mesh position={[bar.x, cordY, bar.frontNodeZ]} raycast={() => undefined}>
-                  <sphereGeometry args={[0.008, 10, 10]} />
-                  <meshStandardMaterial color="#1a100c" roughness={0.9} />
-                </mesh>
-                <mesh position={[bar.x, cordY, bar.backNodeZ]} raycast={() => undefined}>
-                  <sphereGeometry args={[0.008, 10, 10]} />
-                  <meshStandardMaterial color="#1a100c" roughness={0.9} />
-                </mesh>
-              </group>
-            ))}
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-function Cord({ ax, ay, az, bx, by, bz }: { ax: number; ay: number; az: number; bx: number; by: number; bz: number }) {
-  const length = Math.hypot(bx - ax, by - ay, bz - az);
-  const direction = new THREE.Vector3(bx - ax, by - ay, bz - az).normalize();
-  const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-  return (
-    <mesh position={[(ax + bx) / 2, (ay + by) / 2, (az + bz) / 2]} quaternion={quaternion} raycast={() => undefined}>
-      <cylinderGeometry args={[0.0032, 0.0032, Math.max(length, 0.01), 6]} />
-      <meshStandardMaterial color="#24160f" roughness={0.88} />
-    </mesh>
-  );
-}
-
-const MALLET_REST = [
-  {
-    head: new THREE.Vector3(extents.maxX + 0.02, LAYOUT.deckY + 0.055, extents.maxZ + 0.02),
-    aim: new THREE.Vector3(extents.maxX - 0.28, LAYOUT.deckY + 0.05, extents.maxZ + 0.02),
-  },
-  {
-    head: new THREE.Vector3(extents.maxX + 0.02, LAYOUT.deckY + 0.055, extents.maxZ - 0.08),
-    aim: new THREE.Vector3(extents.maxX - 0.28, LAYOUT.deckY + 0.05, extents.maxZ - 0.08),
-  },
-];
 
 function Mallets() {
   const left = useRef<THREE.Group>(null);
   const right = useRef<THREE.Group>(null);
-  const seen = useRef(0);
-  const cursor = useRef(0);
-  const position = useRef(MALLET_REST.map((rest) => rest.head.clone()));
-  const aim = useRef(MALLET_REST.map((rest) => rest.aim.clone()));
-  const strikeAt = useRef([0, 0]);
-  const strikePos = useRef(MALLET_REST.map((rest) => rest.head.clone()));
-  const strikeAim = useRef(MALLET_REST.map((rest) => rest.aim.clone()));
+  const hands = useRef({ left: 0, right: 0, next: "right" as "left" | "right" });
 
-  useFrame((_, delta) => {
-    if (strikeLog.length > seen.current) {
-      const strike = strikeLog[strikeLog.length - 1];
-      const bar = BARS.find((item) => item.midi === strike.midi);
-      if (bar) {
-        const hand = cursor.current % 2;
-        cursor.current += 1;
-        strikePos.current[hand].set(bar.x, bar.y + 0.09, bar.z + 0.05);
-        strikeAim.current[hand].set(bar.x, bar.y + 0.02, bar.z);
-        strikeAt.current[hand] = performance.now();
-      }
-      seen.current = strikeLog.length;
+  useFrame(() => {
+    let newest = 0;
+    for (const at of strikes.values()) newest = Math.max(newest, at);
+    const age = performance.now() - newest;
+    if (newest > hands.current.left && newest > hands.current.right && age < 40) {
+      if (hands.current.next === "right") hands.current.right = newest;
+      else hands.current.left = newest;
+      hands.current.next = hands.current.next === "right" ? "left" : "right";
     }
-    const groups = [left.current, right.current];
-    const blend = 1 - 0.0012 ** delta;
-    for (let index = 0; index < 2; index += 1) {
-      const age = (performance.now() - strikeAt.current[index]) / 1000;
-      const home = age > 0.62;
-      const targetPos = home ? MALLET_REST[index].head : strikePos.current[index];
-      const targetAim = home ? MALLET_REST[index].aim : strikeAim.current[index];
-      position.current[index].lerp(targetPos, blend);
-      aim.current[index].lerp(targetAim, blend);
-      const group = groups[index];
-      if (!group) continue;
-      group.position.copy(position.current[index]);
-      group.lookAt(aim.current[index]);
-    }
+    pose(right.current, hands.current.right, 0);
+    pose(left.current, hands.current.left, 1);
   });
 
   return (
-    <>
-      <Mallet refGroup={left} />
-      <Mallet refGroup={right} />
-    </>
+    <group>
+      <Mallet refGroup={right} restX={0.72} />
+      <Mallet refGroup={left} restX={0.5} />
+    </group>
   );
 }
 
-function Mallet({ refGroup }: { refGroup: RefObject<THREE.Group | null> }) {
+function pose(group: THREE.Group | null, struckAt: number, slot: number) {
+  if (!group) return;
+  const age = performance.now() - struckAt;
+  const striking = struckAt > 0 && age < 170;
+  const t = striking ? Math.sin((age / 170) * Math.PI) : 0;
+  group.position.set(extents.maxX + 0.04 - t * 0.9, 1.07 + t * 0.22, 0.02 + slot * 0.09);
+  group.rotation.set(Math.PI / 2 - t * 1.15, 0, slot * 0.04);
+}
+
+function barGeometry(width: number, height: number, length: number) {
+  const half = width / 2;
+  const shape = new THREE.Shape();
+  shape.moveTo(-half, -height * 0.5);
+  shape.lineTo(half, -height * 0.5);
+  shape.lineTo(half, height * 0.12);
+  shape.quadraticCurveTo(0, height * 0.5, -half, height * 0.12);
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: length,
+    bevelEnabled: true,
+    bevelThickness: 0.0015,
+    bevelSize: 0.0015,
+    bevelSegments: 1,
+    curveSegments: 10,
+  });
+  geometry.translate(0, 0, -length / 2);
+  geometry.computeVertexNormals();
+  const uv = geometry.attributes.uv;
+  const position = geometry.attributes.position;
+  for (let i = 0; i < position.count; i += 1) {
+    uv.setXY(i, position.getX(i) / width + 0.5, position.getZ(i) / length + 0.5);
+  }
+  return geometry;
+}
+
+function Mallet({ refGroup, restX }: { refGroup: RefObject<THREE.Group | null>; restX: number }) {
   return (
-    <group ref={refGroup} raycast={() => undefined}>
-      <mesh position={[0, 0, 0.22]} rotation={[Math.PI / 2, 0, 0]} raycast={() => undefined}>
-        <cylinderGeometry args={[0.01, 0.006, 0.44, 10]} />
-        <meshStandardMaterial color="#b87432" roughness={0.5} />
+    <group ref={refGroup} position={[extents.maxX, 1.07, restX]}>
+      <mesh position={[0, 0.16, 0]} castShadow>
+        <cylinderGeometry args={[0.011, 0.014, 0.34, 10]} />
+        <meshPhysicalMaterial color="#8a6a48" roughness={0.62} metalness={0} />
       </mesh>
-      <mesh position={[0, 0, 0.02]} raycast={() => undefined}>
-        <sphereGeometry args={[0.046, 22, 16]} />
-        <meshPhysicalMaterial color="#f7f1e6" roughness={0.9} sheen={0.55} sheenColor="#fff8ee" />
-      </mesh>
-      <mesh position={[0, 0, 0.015]} raycast={() => undefined}>
-        <torusGeometry args={[0.03, 0.008, 8, 16]} />
-        <meshStandardMaterial color="#efe4d2" roughness={0.85} />
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <sphereGeometry args={[0.032, 18, 16]} />
+        <meshPhysicalMaterial color={rubber} roughness={0.55} metalness={0} />
       </mesh>
     </group>
   );
 }
 
-function KeyLight() {
-  const light = useRef<THREE.DirectionalLight>(null);
-  const target = useRef<THREE.Object3D>(null);
-  useLayoutEffect(() => {
-    if (light.current && target.current) light.current.target = target.current;
-  }, []);
-  return (
-    <>
-      <object3D ref={target} position={[0, 0.7, 0]} />
-      <directionalLight
-        ref={light}
-        position={[2.6, 6.4, 3.1]}
-        intensity={3.5}
-        color="#fff6ea"
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-bias={-0.00018}
-        shadow-camera-near={0.5}
-        shadow-camera-far={16}
-        shadow-camera-left={-4}
-        shadow-camera-right={4}
-        shadow-camera-top={4}
-        shadow-camera-bottom={-4}
-      />
-    </>
-  );
-}
-
-function Scene({ onPlay, onHover, mappedMidis }: StageProps) {
-  const naturalTop = useMemo(() => createBarTopTexture(false), []);
-  const accidentalTop = useMemo(() => createBarTopTexture(true), []);
-  const bamboo = useMemo(() => createBambooTexture(), []);
-  const stain = useMemo(() => createStainTexture(), []);
+function Scene({ onPlay, onHover }: StageProps) {
+  const chonta = useMemo(() => createChontaTexture(), []);
+  const guadua = useMemo(() => createGuaduaTexture(), []);
+  const frame = useMemo(() => createFrameTexture(), []);
   const floor = useMemo(() => createFloorTexture(), []);
-  const mapped = useMemo(() => new Set(mappedMidis), [mappedMidis]);
 
   return (
     <>
-      <color attach="background" args={["#f3efe8"]} />
-      <hemisphereLight args={["#fff8f0", "#d9cbb8", 0.9]} />
-      <ambientLight intensity={0.28} />
-      <KeyLight />
-      <directionalLight position={[-3.2, 2.4, 1.6]} intensity={1.15} color="#f6ecdf" />
-      <directionalLight position={[0.4, 2.2, -3.2]} intensity={0.55} color="#ffffff" />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow raycast={() => undefined}>
-        <circleGeometry args={[8, 80]} />
-        <meshStandardMaterial map={floor} color="#f0eadf" roughness={0.92} />
+      <color attach="background" args={["#1c2b22"]} />
+      <fog attach="fog" args={["#1c2b22", 7, 16]} />
+      <hemisphereLight args={["#d7e2d4", "#3d4a32", 0.72]} />
+      <ambientLight intensity={0.18} />
+      <directionalLight position={[2.4, 5.2, 3.2]} intensity={2.4} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+      <directionalLight position={[-3.2, 2.4, -1.6]} intensity={0.45} color="#c9d4c2" />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <circleGeometry args={[9, 48]} />
+        <meshStandardMaterial map={floor} color="#ffffff" roughness={1} />
       </mesh>
-      <ContactShadows position={[0, 0.001, 0.05]} opacity={0.38} scale={9} blur={2.4} far={1.8} color="#5a4636" />
-      <Frame />
-      <Suspension />
+      <Frame map={frame} />
+      <Cord node="front" />
+      <Cord node="back" />
       {BARS.map((spec) => (
-        <Bar
-          key={spec.midi}
-          spec={spec}
-          topMap={spec.accidental ? accidentalTop : naturalTop}
-          bamboo={bamboo}
-          stain={stain}
-          mapped={mapped.has(spec.midi)}
-          onPlay={onPlay}
-          onHover={onHover}
-        />
+        <Bar key={spec.midi} spec={spec} chonta={chonta} guadua={guadua} onPlay={onPlay} onHover={onHover} />
       ))}
       <Mallets />
+      <ContactShadows position={[0, 0.001, 0]} opacity={0.38} scale={12} blur={2.4} far={3} />
       <OrbitControls
         makeDefault
+        target={[midX, 0.72, midZ]}
         enablePan={false}
-        enableDamping
-        dampingFactor={0.08}
-        minDistance={1.7}
-        maxDistance={8}
-        minPolarAngle={0.35}
-        maxPolarAngle={1.42}
-        target={[0, 0.72, 0]}
+        minDistance={1.5}
+        maxDistance={6.5}
+        maxPolarAngle={Math.PI / 2.02}
       />
     </>
   );
@@ -478,17 +323,11 @@ function Scene({ onPlay, onHover, mappedMidis }: StageProps) {
 export function MarimbaStage(props: StageProps) {
   return (
     <Canvas
-      className="webgl"
-      shadows
+      camera={{ position: [midX + 0.2, 1.7, 2.55], fov: 33 }}
       dpr={[1, 1.75]}
-      camera={{ position: [0.55, 1.72, 3.25], fov: 34 }}
-      gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.12 }}
-      onCreated={({ gl }) => {
-        gl.shadowMap.type = THREE.PCFShadowMap;
-      }}
-      onPointerMissed={() => {
-        document.body.style.cursor = "";
-      }}
+      shadows
+      gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
+      onPointerMissed={() => props.onHover(null)}
     >
       <Scene {...props} />
     </Canvas>

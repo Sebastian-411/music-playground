@@ -3,9 +3,9 @@ const NATURAL_PITCHES = new Set([0, 2, 4, 5, 7, 9, 11]);
 
 /** Exemplar de la colección del Banco de la República: 23 láminas diatónicas. */
 export const KEY_COUNT = 23;
-export const KEYBOARD_SPAN = 8;
+export const KEYBOARD_SPAN = KEY_COUNT;
 export const MIDI_MIN = 48;
-export const OCTAVE_BASES = [48, 60, 72] as const;
+export const OCTAVE_BASES = [48] as const;
 
 export const LAYOUT = {
   gap: 0.015,

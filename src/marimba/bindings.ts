@@ -2,7 +2,15 @@ import { KEYBOARD_SPAN, OCTAVE_BASES, SCALE, noteName } from "./layout";
 
 const STORAGE_KEY = "music-playground.marimba.controls";
 
+/** Las 23 láminas, graves en la fila Z, medias en la A y agudas en la Q. */
 export const DEFAULT_NOTE_CODES = [
+  "KeyZ",
+  "KeyX",
+  "KeyC",
+  "KeyV",
+  "KeyB",
+  "KeyN",
+  "KeyM",
   "KeyA",
   "KeyS",
   "KeyD",
@@ -11,6 +19,14 @@ export const DEFAULT_NOTE_CODES = [
   "KeyH",
   "KeyJ",
   "KeyK",
+  "KeyL",
+  "KeyQ",
+  "KeyW",
+  "KeyE",
+  "KeyR",
+  "KeyT",
+  "KeyY",
+  "KeyU",
 ] as const;
 
 const CODE_LABELS: Record<string, string> = {
@@ -66,11 +82,11 @@ export function defaultBindings(): Bindings {
   return {
     noteCodes: [...DEFAULT_NOTE_CODES],
     noteLabels: DEFAULT_NOTE_CODES.map((code) => codeLabel(code)),
-    octaveDown: "KeyZ",
-    octaveDownLabel: "Z",
-    octaveUp: "KeyX",
-    octaveUpLabel: "X",
-    baseMidi: 60,
+    octaveDown: "",
+    octaveDownLabel: "",
+    octaveUp: "",
+    octaveUpLabel: "",
+    baseMidi: SCALE[0],
     volume: 0.82,
     hardness: 0.55,
   };
@@ -94,9 +110,7 @@ export function loadBindings(): Bindings {
           return typeof label === "string" && label.length > 0 ? label : codeLabel(code);
         })
       : parsed.noteCodes.map((code) => codeLabel(code));
-    const baseMidi = OCTAVE_BASES.includes(parsed.baseMidi as (typeof OCTAVE_BASES)[number])
-      ? (parsed.baseMidi as number)
-      : fallback.baseMidi;
+    const baseMidi = SCALE[0];
     return {
       noteCodes: [...parsed.noteCodes],
       noteLabels,
@@ -173,8 +187,8 @@ export function resolveKey(
   bindings: Bindings,
   code: string,
 ): { type: "note"; midi: number } | { type: "octave"; direction: -1 | 1 } | null {
-  if (code === bindings.octaveDown) return { type: "octave", direction: -1 };
-  if (code === bindings.octaveUp) return { type: "octave", direction: 1 };
+  if (bindings.octaveDown && code === bindings.octaveDown) return { type: "octave", direction: -1 };
+  if (bindings.octaveUp && code === bindings.octaveUp) return { type: "octave", direction: 1 };
   const index = bindings.noteCodes.indexOf(code);
   if (index < 0) return null;
   const midi = noteAt(bindings.baseMidi, index);

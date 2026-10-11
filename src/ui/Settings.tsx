@@ -39,8 +39,8 @@ export function Settings({ bindings, listening, onListen, onVolume, onHardness, 
           </button>
         </header>
         <p className="settings-copy">
-          La hilera es diatónica, como la marimba tradicional. Estas ocho teclas cubren la octava activa;
-          Z y X la cambian. Si una tecla ya estaba usada, se intercambia. Escape cancela la captura.
+          Aquí están las 23 láminas, de Do3 a Re6. Los graves van en Z X C V B N M, el medio en A S D F G H J K L
+          y los agudos en Q W E R T Y U. Si una tecla ya estaba usada, se intercambia. Escape cancela la captura.
         </p>
         {listening && <p className="listen-banner">Pulsa la nueva tecla.</p>}
         <div className="sliders">
@@ -68,18 +68,6 @@ export function Settings({ bindings, listening, onListen, onVolume, onHardness, 
           </label>
         </div>
         <ul className="binding-list">
-          <BindingRow
-            name="Bajar octava"
-            label={bindings.octaveDownLabel}
-            listening={sameListening(listening, { kind: "octaveDown" })}
-            onListen={() => onListen({ kind: "octaveDown" })}
-          />
-          <BindingRow
-            name="Subir octava"
-            label={bindings.octaveUpLabel}
-            listening={sameListening(listening, { kind: "octaveUp" })}
-            onListen={() => onListen({ kind: "octaveUp" })}
-          />
           {notes.map((note, index) => (
             <BindingRow
               key={index}

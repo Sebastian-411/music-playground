@@ -7,7 +7,6 @@ type HudProps = {
   hoveredMidi: number | null;
   lastNote: string;
   onPlay: (midi: number) => void;
-  onOctave: (direction: -1 | 1) => void;
   onScale: () => void;
   onOpenPacifico: () => void;
   onOpenSettings: () => void;
@@ -18,7 +17,6 @@ export function Hud({
   hoveredMidi,
   lastNote,
   onPlay,
-  onOctave,
   onScale,
   onOpenPacifico,
   onOpenSettings,
@@ -68,23 +66,14 @@ export function Hud({
           <p className="last-note" data-last-note={lastNote}>
             {lastNote ? `Sonó ${lastNote}` : "Toca una lámina o el teclado"}
           </p>
-          <div className="octave">
-            <button type="button" onClick={() => onOctave(-1)} aria-label="Bajar octava">
-              −
-            </button>
-            <span>{activeRangeLabel(bindings.baseMidi)}</span>
-            <button type="button" onClick={() => onOctave(1)} aria-label="Subir octava">
-              +
-            </button>
-          </div>
-          <p className="hint">Arrastra el fondo para girar. El mouse suena en las láminas.</p>
+          <p className="hint">Hilera completa · {activeRangeLabel(bindings.baseMidi)}</p>
         </div>
-        <div className="keybed interactive" aria-label="Teclado de la octava activa">
+        <div className="keybed interactive" aria-label="Las 23 láminas">
           {notes.map((note, index) => (
             <button
               key={`${note.midi}-${index}`}
               type="button"
-              className="key natural"
+              className={`key natural${note.midi % 12 === 0 ? " octave-mark" : ""}`}
               disabled={!note.playable}
               onPointerDown={(event) => {
                 event.preventDefault();

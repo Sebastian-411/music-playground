@@ -8,12 +8,10 @@ import {
   loadBindings,
   saveBindings,
   resolveKey,
-  shiftOctave,
   type Bindings,
   type Slot,
 } from "./marimba/bindings";
-import { MIDI_MAX } from "./marimba/layout";
-import { noteName } from "./marimba/layout";
+import { SCALE, noteName } from "./marimba/layout";
 import { MarimbaStage } from "./marimba/MarimbaStage";
 import { MarimbaSynth } from "./marimba/synth";
 import { markStrike } from "./marimba/strikes";
@@ -85,10 +83,7 @@ export function App() {
       const action = resolveKey(bindingsRef.current, event.code);
       if (!action) return;
       event.preventDefault();
-      if (action.type === "octave") {
-        setBindings((current) => ({ ...current, baseMidi: shiftOctave(current.baseMidi, action.direction) }));
-        return;
-      }
+      if (action.type === "octave") return;
       play(action.midi);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -110,12 +105,8 @@ export function App() {
   );
 
   const playScale = useCallback(() => {
-    const base = bindingsRef.current.baseMidi;
-    const scale = [0, 2, 4, 5, 7, 9, 11, 12]
-      .map((interval) => base + interval)
-      .filter((midi) => midi <= MIDI_MAX);
-    scale.forEach((midi, index) => {
-      window.setTimeout(() => play(midi), index * 170);
+    SCALE.forEach((midi, index) => {
+      window.setTimeout(() => play(midi), index * 120);
     });
   }, [play]);
 
@@ -133,7 +124,6 @@ export function App() {
         hoveredMidi={hoveredMidi}
         lastNote={lastNote}
         onPlay={play}
-        onOctave={(direction) => update((current) => ({ ...current, baseMidi: shiftOctave(current.baseMidi, direction) }))}
         onScale={playScale}
         onOpenPacifico={() => {
           setSettingsOpen(false);

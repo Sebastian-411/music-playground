@@ -1,4 +1,4 @@
-import { ESTUDIOS, REFERENCIAS, type Estudio } from "../marimba/pacifico";
+import { CANCIONES, ESTUDIOS, type Estudio } from "../marimba/pacifico";
 
 type PacificoProps = {
   playingId: string | null;
@@ -26,8 +26,9 @@ export function Pacifico({ playingId, onPlay, onClose }: PacificoProps) {
           </button>
         </header>
         <p className="settings-copy">
-          Estos estudios son piezas originales en currulao, juga y bunde para practicar en esta marimba. La lista de
-          abajo son canciones de referencia del litoral; aquí no suenan sus grabaciones.
+          Los estudios son para practicar el aire. Las canciones se pueden tocar en esta hilera: la armonía sale de
+          las cifras publicadas cuando existen, transportada a La menor o Do mayor. No suenan las grabaciones ni van
+          las letras.
         </p>
         <div className="study-list">
           {ESTUDIOS.map((estudio) => (
@@ -35,7 +36,7 @@ export function Pacifico({ playingId, onPlay, onClose }: PacificoProps) {
               <div>
                 <strong>{estudio.title}</strong>
                 <small>{estudio.aire}</small>
-                <p>{estudio.detail}</p>
+                <p>{estudio.chords}</p>
               </div>
               <button type="button" onClick={() => onPlay(estudio)} aria-pressed={playingId === estudio.id}>
                 {playingId === estudio.id ? "Sonando…" : "Tocar"}
@@ -43,17 +44,24 @@ export function Pacifico({ playingId, onPlay, onClose }: PacificoProps) {
             </article>
           ))}
         </div>
-        <h3>Para escuchar</h3>
-        <ul className="song-list">
-          {REFERENCIAS.map((song) => (
-            <li key={song.title}>
-              <strong>{song.title}</strong>
-              <small>
-                {song.artist} · {song.aire}
-              </small>
-            </li>
+        <h3>Para tocar</h3>
+        <div className="study-list">
+          {CANCIONES.map((song) => (
+            <article key={song.id} className="study-row">
+              <div>
+                <strong>{song.title}</strong>
+                <small>
+                  {song.artist} · {song.aire}
+                </small>
+                <p>{song.chords}</p>
+                <p>{song.detail}</p>
+              </div>
+              <button type="button" onClick={() => onPlay(song)} aria-pressed={playingId === song.id}>
+                {playingId === song.id ? "Sonando…" : "Tocar"}
+              </button>
+            </article>
           ))}
-        </ul>
+        </div>
       </section>
     </div>
   );

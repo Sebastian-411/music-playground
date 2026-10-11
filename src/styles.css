@@ -182,27 +182,30 @@ kbd {
 
 .keybed {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.28rem;
   overflow-x: auto;
   padding-bottom: 0.15rem;
 }
 
 .key {
-  flex: 0 0 auto;
-  min-width: 3.35rem;
-  height: 4.5rem;
-  border-radius: 0.7rem;
+  flex: 1 0 2.15rem;
+  min-width: 2.15rem;
+  height: 3.7rem;
+  border-radius: 0.55rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 0.4rem 0.45rem 0.45rem;
+  padding: 0.28rem 0.28rem 0.32rem;
   text-align: left;
 }
 
-.key small { font-size: 0.72rem; opacity: 0.75; }
+.key.octave-mark { margin-left: 0.45rem; }
+.keybed .key:first-child { margin-left: 0; }
 
-.key strong { font-size: 0.78rem; font-weight: 650; }
+.key small { font-size: 0.68rem; opacity: 0.75; }
+
+.key strong { font-size: 0.72rem; font-weight: 650; }
 
 .key.natural {
   background: linear-gradient(#f6e6cf, #e0bc8d);
@@ -231,7 +234,7 @@ kbd {
 }
 
 .settings {
-  width: min(34rem, 100%);
+  width: min(46rem, 100%);
   max-height: min(42rem, calc(100% - 2rem));
   overflow: auto;
   background: #173028;
